@@ -35,9 +35,16 @@ def strip_attachments_from_raw(raw_content):
         html_part = msg.get_body(preferencelist=('html', 'plain'))
 
         if text_part:
-            new_msg.set_content(text_part.get_content())
+            # If the primary part found is actually HTML, set subtype='html'
+            subtype = 'html' if text_part.get_content_subtype() == 'html' else 'plain'
+            new_msg.set_content(text_part.get_content(), subtype=subtype)
+            
+            # If we have an alternative HTML part that is different from the text part, add it
             if html_part and html_part != text_part:
                 new_msg.add_alternative(html_part.get_content(), subtype='html')
+        elif html_part:
+            # Fallback for HTML-only emails
+            new_msg.set_content(html_part.get_content(), subtype='html')
         else:
             new_msg.set_content("Body removed during cleanup.")
 
@@ -58,9 +65,10 @@ def main():
 
     for msg_meta in messages:
         msg_id = msg_meta['id']
-        # Get raw message content and original internalDate
+        # Get raw message content, original internalDate, and threadId
         msg_data = service.users().messages().get(userId='me', id=msg_id, format='raw').execute()
         internal_date = msg_data.get('internalDate')
+        thread_id = msg_data.get('threadId')
         raw_bytes = base64.urlsafe_b64decode(msg_data['raw'].encode('ASCII'))
 
         stripped_bytes = strip_attachments_from_raw(raw_bytes)
@@ -69,7 +77,8 @@ def main():
         message_body = {
             'raw': encoded_message,
             'labelIds': [post_label_id],
-            'internalDate': internal_date  # Pass the original timestamp directly
+            'internalDate': internal_date,
+            'threadId': thread_id  # Ensures it stays in the same conversation
         }
 
         try:
