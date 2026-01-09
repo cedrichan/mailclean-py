@@ -1,4 +1,8 @@
 import base64
+import os
+import sys
+import argparse
+from datetime import datetime
 from email import message_from_bytes, policy
 from email.message import EmailMessage
 from .large_attachments import get_gmail_service, get_or_create_label
@@ -7,6 +11,62 @@ def fetch_messages_by_label(service, label_id):
     """Fetches all messages associated with a specific label ID."""
     results = service.users().messages().list(userId='me', labelIds=[label_id]).execute()
     return results.get('messages', [])
+
+def sanitize_filename(name):
+    """Removes characters that are illegal in filenames."""
+    return "".join(c for c in name if c.isalnum() or c in (' ', '.', '_', '-')).strip()
+
+def create_email_shortcut(directory, subject, message_id):
+    """Creates a .url shortcut file pointing to the Gmail message."""
+    link = f"https://mail.google.com/mail/u/0/#inbox/{message_id}"
+    filename = "__LINK.url"
+    filepath = os.path.join(directory, filename)
+    
+    with open(filepath, 'w') as f:
+        f.write("[InternetShortcut]\n")
+        f.write(f"URL={link}\n")
+    return filename
+
+def save_attachments(raw_content, base_dir, new_message_id=None):
+    """Finds and saves attachments from raw email content and adds a link to the new message."""
+    msg = message_from_bytes(raw_content, policy=policy.default)
+    
+    subject = msg.get('Subject', 'No Subject')
+    date_str = msg.get('Date')
+    
+    # Format date: 2023-10-27
+    try:
+        dt = datetime.strptime(date_str[:25].strip(), '%a, %d %b %Y %H:%M:%S')
+        formatted_date = dt.strftime('%Y-%m-%d')
+    except:
+        formatted_date = "UnknownDate"
+
+    folder_name = f"{formatted_date} - {sanitize_filename(subject)}"
+    target_dir = os.path.join(base_dir, folder_name)
+    
+    # Create folder if it has attachments or if we are adding a link
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+
+    # Add the shortcut link
+    if new_message_id:
+        create_email_shortcut(target_dir, subject, new_message_id)
+
+    saved_files = []
+    
+    for part in msg.walk():
+        filename = part.get_filename()
+        if filename:
+            
+            clean_filename = sanitize_filename(filename)
+            filepath = os.path.join(target_dir, clean_filename)
+            
+            payload = part.get_payload(decode=True)
+            with open(filepath, 'wb') as f:
+                f.write(payload)
+            saved_files.append(clean_filename)
+            
+    return saved_files
 
 def strip_attachments_from_raw(raw_content):
     """Parses raw email bytes and returns a version with only text/html parts."""
@@ -51,6 +111,13 @@ def strip_attachments_from_raw(raw_content):
         return new_msg.as_bytes()
 
 def main():
+    parser = argparse.ArgumentParser(description="Strip attachments and optionally save them.")
+    parser.add_argument("download_dir", help="Directory to save attachments to")
+    args = parser.parse_args()
+
+    if not os.path.exists(args.download_dir):
+        os.makedirs(args.download_dir)
+
     service = get_gmail_service()
 
     pre_label_id = get_or_create_label(service, "PRE_CLEANUP")
@@ -71,6 +138,7 @@ def main():
         thread_id = msg_data.get('threadId')
         raw_bytes = base64.urlsafe_b64decode(msg_data['raw'].encode('ASCII'))
 
+        # 2. Strip attachments from raw bytes
         stripped_bytes = strip_attachments_from_raw(raw_bytes)
 
         encoded_message = base64.urlsafe_b64encode(stripped_bytes).decode('utf-8')
@@ -78,17 +146,25 @@ def main():
             'raw': encoded_message,
             'labelIds': [post_label_id],
             'internalDate': internal_date,
-            'threadId': thread_id  # Ensures it stays in the same conversation
+            'threadId': thread_id
         }
 
         try:
-            # internalDateSource='dateHeader' tells Gmail to trust the header or the provided internalDate
+            # 3. Create the cleaned duplicate first to get its ID
             created_msg = service.users().messages().insert(
                 userId='me',
                 body=message_body,
                 internalDateSource='dateHeader'
             ).execute()
-            print(f"Created cleaned duplicate: {created_msg['id']} (Original Date: {internal_date})")
+            
+            new_id = created_msg['id']
+            print(f"Created cleaned duplicate: {new_id}")
+
+            # 4. Now save attachments and include the shortcut to the NEW ID
+            files = save_attachments(raw_bytes, args.download_dir, new_message_id=new_id)
+            if files:
+                print(f"Saved {len(files)} attachments for {msg_id} (Linked to {new_id})")
+                
         except Exception as e:
             print(f"Error processing message {msg_id}: {e}")
 
