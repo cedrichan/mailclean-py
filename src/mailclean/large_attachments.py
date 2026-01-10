@@ -1,4 +1,5 @@
 import os.path
+import argparse
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -33,6 +34,9 @@ def fetch_large_messages(service, size_mb=5):
         # Fetching full metadata for each message
         detail = service.users().messages().get(userId='me', id=msg['id'], format='metadata').execute()
         detailed_messages.append(detail)
+
+    # Sort messages by internalDate (ascending)
+    detailed_messages.sort(key=lambda x: int(x.get('internalDate', 0)))
 
     return detailed_messages
 
@@ -87,22 +91,15 @@ def apply_label_to_message(service, message_id, label_id):
     ).execute()
 
 def main():
+    parser = argparse.ArgumentParser(description="Label large Gmail messages.")
+    parser.add_argument(
+        '--threshold', 
+        type=int, 
+        default=15, 
+        help="Minimum size of messages in MB (default: 15)"
+    )
+    args = parser.parse_args()
+
     service = get_gmail_service()
-    threshold = 15
+    threshold = args.threshold
     print(f"Searching for emails larger than {threshold}MB...\n")
-
-    messages = fetch_large_messages(service, threshold)
-
-    if not messages:
-        print("No large messages found.")
-        return
-
-    label_id = get_or_create_label(service, "PRE_CLEANUP")
-    print(f"Applying label PRE_CLEANUP to {len(messages)} messages...")
-
-    for msg in messages:
-        print_message_info(msg)
-        # apply_label_to_message(service, msg['id'], label_id)
-
-if __name__ == '__main__':
-    main()
