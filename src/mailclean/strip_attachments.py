@@ -1,20 +1,16 @@
 import base64
 import os
-import sys
 import argparse
 from datetime import datetime
 from email import message_from_bytes, policy
 from email.message import EmailMessage
+from pathvalidate import sanitize_filename
 from .large_attachments import get_gmail_service, get_or_create_label
 
 def fetch_messages_by_label(service, label_id):
     """Fetches all messages associated with a specific label ID."""
     results = service.users().messages().list(userId='me', labelIds=[label_id]).execute()
     return results.get('messages', [])
-
-def sanitize_filename(name):
-    """Removes characters that are illegal in filenames."""
-    return "".join(c for c in name if c.isalnum() or c in (' ', '.', '_', '-')).strip()
 
 def create_email_shortcut(directory, subject, message_id):
     """Creates a .url shortcut file pointing to the Gmail message."""
@@ -27,21 +23,22 @@ def create_email_shortcut(directory, subject, message_id):
         f.write(f"URL={link}\n")
     return filename
 
-def save_attachments(raw_content, base_dir, new_message_id=None):
+def save_attachments(raw_content, base_dir, original_message_id, new_message_id=None):
     """Finds and saves attachments from raw email content and adds a link to the new message."""
     msg = message_from_bytes(raw_content, policy=policy.default)
     
     subject = msg.get('Subject', 'No Subject')
     date_str = msg.get('Date')
     
-    # Format date: 2023-10-27
+    # Format date and time: 2023-10-27 14.30.05
     try:
         dt = datetime.strptime(date_str[:25].strip(), '%a, %d %b %Y %H:%M:%S')
-        formatted_date = dt.strftime('%Y-%m-%d')
+        formatted_datetime = dt.strftime('%Y-%m-%d %H.%M.%S')
     except:
-        formatted_date = "UnknownDate"
+        formatted_datetime = "UnknownDateTime"
 
-    folder_name = f"{formatted_date} - {sanitize_filename(subject)}"
+    clean_subject = sanitize_filename(subject)
+    folder_name = f"{formatted_datetime} - {original_message_id} - {clean_subject}"
     target_dir = os.path.join(base_dir, folder_name)
     
     # Create folder if it has attachments or if we are adding a link
@@ -57,7 +54,6 @@ def save_attachments(raw_content, base_dir, new_message_id=None):
     for part in msg.walk():
         filename = part.get_filename()
         if filename:
-            
             clean_filename = sanitize_filename(filename)
             filepath = os.path.join(target_dir, clean_filename)
             
@@ -132,7 +128,7 @@ def main():
 
     for msg_meta in messages:
         msg_id = msg_meta['id']
-        # Get raw message content, original internalDate, and threadId
+        # 1. Get raw message content, original internalDate, and threadId
         msg_data = service.users().messages().get(userId='me', id=msg_id, format='raw').execute()
         internal_date = msg_data.get('internalDate')
         thread_id = msg_data.get('threadId')
@@ -161,7 +157,8 @@ def main():
             print(f"Created cleaned duplicate: {new_id}")
 
             # 4. Now save attachments and include the shortcut to the NEW ID
-            files = save_attachments(raw_bytes, args.download_dir, new_message_id=new_id)
+            # Pass original_message_id to the folder naming logic
+            files = save_attachments(raw_bytes, args.download_dir, msg_id, new_message_id=new_id)
             if files:
                 print(f"Saved {len(files)} attachments for {msg_id} (Linked to {new_id})")
                 
