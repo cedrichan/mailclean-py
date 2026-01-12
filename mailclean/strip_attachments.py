@@ -199,6 +199,7 @@ def main() -> None:
         "--download_dir", required=True, help="Directory to save attachments"
     )
     args = parser.parse_args()
+    args.download_dir = os.path.expanduser(args.download_dir)
 
     if not os.path.exists(args.download_dir):
         os.makedirs(args.download_dir)
