@@ -102,6 +102,18 @@ def apply_label_to_message(service, message_id, label_id):
     ).execute()
 
 
+def tag_large_emails(service, size_bytes, label_id):
+    """Queries Gmail for messages larger than the specified size (in bytes) and applies a label."""
+    query = f"larger:{size_bytes}"
+    results = service.users().messages().list(userId="me", q=query).execute()
+    messages_summaries = results.get("messages", [])
+
+    print(f"Applying label to {len(messages_summaries)} messages...")
+
+    for msg in messages_summaries:
+        apply_label_to_message(service, msg["id"], label_id)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Label large Gmail messages.")
     parser.add_argument(
@@ -113,21 +125,12 @@ def main():
     args = parser.parse_args()
 
     service = get_gmail_service()
-    threshold = args.threshold
-    print(f"Searching for emails larger than {threshold}MB...\n")
-
-    messages = fetch_large_messages(service, threshold)
-
-    if not messages:
-        print("No large messages found.")
-        return
+    threshold_mb = args.threshold
+    threshold_bytes = threshold_mb * 1024 * 1024
+    print(f"Searching for emails larger than {threshold_mb}MB...\n")
 
     label_id = get_or_create_label(service, "PRE_CLEANUP")
-    print(f"Applying label PRE_CLEANUP to {len(messages)} messages...")
-
-    for msg in messages:
-        print_message_info(msg)
-        apply_label_to_message(service, msg["id"], label_id)
+    tag_large_emails(service, threshold_bytes, label_id)
 
 
 if __name__ == "__main__":

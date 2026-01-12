@@ -10,27 +10,12 @@ def fetch_messages_with_label(service, label_id):
     return results.get("messages", [])
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Remove original emails marked with PRE_CLEANUP."
-    )
-    parser.add_argument(
-        "--dry-run", action="store_true", help="List messages without deleting them."
-    )
-    args = parser.parse_args()
-
-    service = get_gmail_service()
-
-    # Get Label IDs
+def delete_labeled_messages(service, pre_label_id, dry_run=False):
+    """Deletes messages with the specified label, with a safety check."""
+    # Get Label IDs for safety check
     labels_results = service.users().labels().list(userId="me").execute()
     labels = labels_results.get("labels", [])
-
-    pre_label_id = next((l["id"] for l in labels if l["name"] == "PRE_CLEANUP"), None)
     post_label_id = next((l["id"] for l in labels if l["name"] == "POST_CLEANUP"), None)
-
-    if not pre_label_id:
-        print("Label 'PRE_CLEANUP' not found. Nothing to do.")
-        return
 
     # Fetch messages that have the PRE_CLEANUP label
     messages_to_process = fetch_messages_with_label(service, pre_label_id)
@@ -60,7 +45,7 @@ def main():
             )
             continue
 
-        if args.dry_run:
+        if dry_run:
             print(f"[DRY RUN] Would delete message: {msg_id} - {snippet[:50]}...")
         else:
             try:
@@ -70,7 +55,29 @@ def main():
             except Exception as e:
                 print(f"Error deleting message {msg_id}: {e}")
 
-    print("Done.")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Remove original emails marked with PRE_CLEANUP."
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="List messages without deleting them."
+    )
+    args = parser.parse_args()
+
+    service = get_gmail_service()
+
+    # Get Label IDs
+    labels_results = service.users().labels().list(userId="me").execute()
+    labels = labels_results.get("labels", [])
+
+    pre_label_id = next((l["id"] for l in labels if l["name"] == "PRE_CLEANUP"), None)
+
+    if not pre_label_id:
+        print("Label 'PRE_CLEANUP' not found. Nothing to do.")
+        return
+
+    delete_labeled_messages(service, pre_label_id, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

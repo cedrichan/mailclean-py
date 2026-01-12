@@ -98,25 +98,25 @@ def strip_attachments_from_raw(raw_content):
     if original_date:
         new_msg["Date"] = original_date
 
-        # Find text and html parts
-        text_part = msg.get_body(preferencelist=("plain", "html"))
-        html_part = msg.get_body(preferencelist=("html", "plain"))
+    # Find text and html parts
+    text_part = msg.get_body(preferencelist=("plain", "html"))
+    html_part = msg.get_body(preferencelist=("html", "plain"))
 
-        if text_part:
-            # If the primary part found is actually HTML, set subtype='html'
-            subtype = "html" if text_part.get_content_subtype() == "html" else "plain"
-            new_msg.set_content(text_part.get_content(), subtype=subtype)
+    if text_part:
+        # If the primary part found is actually HTML, set subtype='html'
+        subtype = "html" if text_part.get_content_subtype() == "html" else "plain"
+        new_msg.set_content(text_part.get_content(), subtype=subtype)
 
-            # If we have an alternative HTML part that is different from the text part, add it
-            if html_part and html_part != text_part:
-                new_msg.add_alternative(html_part.get_content(), subtype="html")
-        elif html_part:
-            # Fallback for HTML-only emails
-            new_msg.set_content(html_part.get_content(), subtype="html")
-        else:
-            new_msg.set_content("Body removed during cleanup.")
+        # If we have an alternative HTML part that is different from the text part, add it
+        if html_part and html_part != text_part:
+            new_msg.add_alternative(html_part.get_content(), subtype="html")
+    elif html_part:
+        # Fallback for HTML-only emails
+        new_msg.set_content(html_part.get_content(), subtype="html")
+    else:
+        new_msg.set_content("Body removed during cleanup.")
 
-        return new_msg.as_bytes()
+    return new_msg.as_bytes()
 
 
 def main():
