@@ -5,7 +5,11 @@ from datetime import datetime
 from email import message_from_bytes, policy
 from email.message import EmailMessage
 from pathvalidate import sanitize_filename
-from .large_attachments import get_gmail_service, get_or_create_label
+from .gmail import (
+    get_gmail_service,
+    get_pre_cleanup_label_id,
+    get_post_cleanup_label_id,
+)
 
 
 def fetch_messages_by_label(service, label_id):
@@ -39,7 +43,7 @@ def save_attachments(raw_content, base_dir, original_message_id, new_message_id=
     try:
         dt = datetime.strptime(date_str[:25].strip(), "%a, %d %b %Y %H:%M:%S")
         formatted_datetime = dt.strftime("%Y-%m-%d %H.%M.%S")
-    except:
+    except Exception:
         formatted_datetime = "UnknownDateTime"
 
     clean_subject = sanitize_filename(subject)
@@ -91,7 +95,7 @@ def strip_attachments_from_raw(raw_content):
             for val in values:
                 try:
                     new_msg[header] = str(val).strip()
-                except:
+                except Exception:
                     continue
 
     # Explicitly set the original date back
@@ -119,26 +123,8 @@ def strip_attachments_from_raw(raw_content):
     return new_msg.as_bytes()
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Strip attachments and optionally save them."
-    )
-    parser.add_argument("download_dir", help="Directory to save attachments to")
-    args = parser.parse_args()
-
-    if not os.path.exists(args.download_dir):
-        os.makedirs(args.download_dir)
-
-    service = get_gmail_service()
-
-    pre_label_id = get_or_create_label(service, "PRE_CLEANUP")
-    post_label_id = get_or_create_label(service, "POST_CLEANUP")
-
-    messages = fetch_messages_by_label(service, pre_label_id)
-    if not messages:
-        print("No messages found with PRE_CLEANUP label.")
-        return
-
+def process_messages(service, messages, download_dir, post_label_id):
+    """Processes a list of messages: strips attachments, saves them, and creates cleaned versions."""
     print(f"Found {len(messages)} messages to process.")
 
     for msg_meta in messages:
@@ -180,7 +166,7 @@ def main():
             # 4. Now save attachments and include the shortcut to the NEW ID
             # Pass original_message_id to the folder naming logic
             files = save_attachments(
-                raw_bytes, args.download_dir, msg_id, new_message_id=new_id
+                raw_bytes, download_dir, msg_id, new_message_id=new_id
             )
             if files:
                 print(
@@ -189,6 +175,31 @@ def main():
 
         except Exception as e:
             print(f"Error processing message {msg_id}: {e}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Strip attachments and optionally save them."
+    )
+    parser.add_argument(
+        "--download_dir", required=True, help="Directory to save attachments"
+    )
+    args = parser.parse_args()
+
+    if not os.path.exists(args.download_dir):
+        os.makedirs(args.download_dir)
+
+    service = get_gmail_service()
+
+    pre_label_id = get_pre_cleanup_label_id(service)
+    post_label_id = get_post_cleanup_label_id(service)
+
+    messages = fetch_messages_by_label(service, pre_label_id)
+    if not messages:
+        print("No messages found.")
+        return
+
+    process_messages(service, messages, args.download_dir, post_label_id)
 
 
 if __name__ == "__main__":

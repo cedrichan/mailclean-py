@@ -1,5 +1,9 @@
 import argparse
-from .large_attachments import get_gmail_service
+from .gmail import (
+    get_gmail_service,
+    get_pre_cleanup_label_id,
+    get_post_cleanup_label_id,
+)
 
 
 def fetch_messages_with_label(service, label_id):
@@ -13,9 +17,7 @@ def fetch_messages_with_label(service, label_id):
 def delete_labeled_messages(service, pre_label_id, dry_run=False):
     """Deletes messages with the specified label, with a safety check."""
     # Get Label IDs for safety check
-    labels_results = service.users().labels().list(userId="me").execute()
-    labels = labels_results.get("labels", [])
-    post_label_id = next((l["id"] for l in labels if l["name"] == "POST_CLEANUP"), None)
+    post_label_id = get_post_cleanup_label_id(service)
 
     # Fetch messages that have the PRE_CLEANUP label
     messages_to_process = fetch_messages_with_label(service, pre_label_id)
@@ -67,15 +69,7 @@ def main():
 
     service = get_gmail_service()
 
-    # Get Label IDs
-    labels_results = service.users().labels().list(userId="me").execute()
-    labels = labels_results.get("labels", [])
-
-    pre_label_id = next((l["id"] for l in labels if l["name"] == "PRE_CLEANUP"), None)
-
-    if not pre_label_id:
-        print("Label 'PRE_CLEANUP' not found. Nothing to do.")
-        return
+    pre_label_id = get_pre_cleanup_label_id(service)
 
     delete_labeled_messages(service, pre_label_id, dry_run=args.dry_run)
 
