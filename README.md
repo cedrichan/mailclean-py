@@ -95,3 +95,9 @@ uv run mailclean/oneshot.py --download_dir ./my_attachments_folder --size 100000
 ## Safety Features
 - **Trash instead of Delete**: `remove_originals.py` moves files to the Gmail Trash rather than permanently deleting them, giving you a 30-day window to recover them.
 - **Safety Checks**: The removal script checks for the presence of the `POST_CLEANUP` label on messages to prevent accidental deletion of already cleaned content.
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
