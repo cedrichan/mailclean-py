@@ -1,6 +1,7 @@
 import base64
 import os
 import argparse
+from typing import Any, List, Dict, Optional
 from datetime import datetime
 from email import message_from_bytes, policy
 from email.message import EmailMessage
@@ -9,10 +10,13 @@ from .gmail import (
     get_gmail_service,
     get_pre_cleanup_label_id,
     get_post_cleanup_label_id,
+    GmailService,
 )
 
 
-def fetch_messages_by_label(service, label_id):
+def fetch_messages_by_label(
+    service: GmailService, label_id: str
+) -> List[Dict[str, Any]]:
     """Fetches all messages associated with a specific label ID."""
     results = (
         service.users().messages().list(userId="me", labelIds=[label_id]).execute()
@@ -20,7 +24,7 @@ def fetch_messages_by_label(service, label_id):
     return results.get("messages", [])
 
 
-def create_email_shortcut(directory, subject, message_id):
+def create_email_shortcut(directory: str, message_id: str) -> str:
     """Creates a .url shortcut file pointing to the Gmail message."""
     link = f"https://mail.google.com/mail/u/0/#inbox/{message_id}"
     filename = "__LINK.url"
@@ -32,7 +36,12 @@ def create_email_shortcut(directory, subject, message_id):
     return filename
 
 
-def save_attachments(raw_content, base_dir, original_message_id, new_message_id=None):
+def save_attachments(
+    raw_content: bytes,
+    base_dir: str,
+    original_message_id: str,
+    new_message_id: Optional[str] = None,
+) -> List[str]:
     """Finds and saves attachments from raw email content and adds a link to the new message."""
     msg = message_from_bytes(raw_content, policy=policy.default)
 
@@ -56,7 +65,7 @@ def save_attachments(raw_content, base_dir, original_message_id, new_message_id=
 
     # Add the shortcut link
     if new_message_id:
-        create_email_shortcut(target_dir, subject, new_message_id)
+        create_email_shortcut(target_dir, new_message_id)
 
     saved_files = []
 
@@ -74,7 +83,7 @@ def save_attachments(raw_content, base_dir, original_message_id, new_message_id=
     return saved_files
 
 
-def strip_attachments_from_raw(raw_content):
+def strip_attachments_from_raw(raw_content: bytes) -> bytes:
     """Parses raw email bytes and returns a version with only text/html parts."""
     msg = message_from_bytes(raw_content, policy=policy.default)
 
@@ -123,7 +132,12 @@ def strip_attachments_from_raw(raw_content):
     return new_msg.as_bytes()
 
 
-def process_messages(service, messages, download_dir, post_label_id):
+def process_messages(
+    service: GmailService,
+    messages: List[Dict[str, Any]],
+    download_dir: str,
+    post_label_id: str,
+) -> None:
     """Processes a list of messages: strips attachments, saves them, and creates cleaned versions."""
     print(f"Found {len(messages)} messages to process.")
 
@@ -177,7 +191,7 @@ def process_messages(service, messages, download_dir, post_label_id):
             print(f"Error processing message {msg_id}: {e}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Strip attachments and optionally save them."
     )

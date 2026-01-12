@@ -1,9 +1,13 @@
 import os.path
 from functools import lru_cache
+from typing import NewType
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
+from googleapiclient.discovery import Resource, build
+
+# NewType for the Gmail API service object
+GmailService = NewType("GmailService", Resource)
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
@@ -12,7 +16,7 @@ PRE_CLEANUP_LABEL = "PRE_CLEANUP"
 POST_CLEANUP_LABEL = "POST_CLEANUP"
 
 
-def get_gmail_service():
+def get_gmail_service() -> GmailService:
     creds = None
     if os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file("token.json", SCOPES)
@@ -24,10 +28,10 @@ def get_gmail_service():
             creds = flow.run_local_server(port=0)
         with open("token.json", "w") as token:
             token.write(creds.to_json())
-    return build("gmail", "v1", credentials=creds)
+    return GmailService(build("gmail", "v1", credentials=creds))
 
 
-def get_or_create_label(service, label_name):
+def get_or_create_label(service: GmailService, label_name: str) -> str:
     """Returns the ID of the specified label, creating it if it doesn't exist."""
     results = service.users().labels().list(userId="me").execute()
     labels = results.get("labels", [])
@@ -49,10 +53,10 @@ def get_or_create_label(service, label_name):
 
 
 @lru_cache(maxsize=None)
-def get_pre_cleanup_label_id(service):
+def get_pre_cleanup_label_id(service: GmailService) -> str:
     return get_or_create_label(service, PRE_CLEANUP_LABEL)
 
 
 @lru_cache(maxsize=None)
-def get_post_cleanup_label_id(service):
+def get_post_cleanup_label_id(service: GmailService) -> str:
     return get_or_create_label(service, POST_CLEANUP_LABEL)

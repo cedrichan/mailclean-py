@@ -1,31 +1,9 @@
 import argparse
-from .gmail import get_gmail_service, get_pre_cleanup_label_id
+from typing import Any, Dict
+from .gmail import get_gmail_service, get_pre_cleanup_label_id, GmailService
 
 
-def fetch_large_messages(service, size_mb=5):
-    """Queries Gmail for messages larger than the specified size and returns full message objects."""
-    query = f"larger:{size_mb}M"
-    results = service.users().messages().list(userId="me", q=query).execute()
-    messages_summaries = results.get("messages", [])
-
-    detailed_messages = []
-    for msg in messages_summaries:
-        # Fetching full metadata for each message
-        detail = (
-            service.users()
-            .messages()
-            .get(userId="me", id=msg["id"], format="metadata")
-            .execute()
-        )
-        detailed_messages.append(detail)
-
-    # Sort messages by internalDate (ascending)
-    detailed_messages.sort(key=lambda x: int(x.get("internalDate", 0)))
-
-    return detailed_messages
-
-
-def print_message_info(message):
+def print_message_info(message: Dict[str, Any]) -> None:
     """Formats and prints message details including a direct browser link."""
     headers = message.get("payload", {}).get("headers", [])
 
@@ -52,14 +30,16 @@ def print_message_info(message):
     print("-" * 40)
 
 
-def apply_label_to_message(service, message_id, label_id):
+def apply_label_to_message(
+    service: GmailService, message_id: str, label_id: str
+) -> None:
     """Adds the specified label to a message."""
     service.users().messages().batchModify(
         userId="me", body={"ids": [message_id], "addLabelIds": [label_id]}
     ).execute()
 
 
-def tag_large_emails(service, size_bytes, label_id):
+def tag_large_emails(service: GmailService, size_bytes: int, label_id: str) -> None:
     """Queries Gmail for messages larger than the specified size (in bytes) and applies a label."""
     query = f"larger:{size_bytes}"
     results = service.users().messages().list(userId="me", q=query).execute()
@@ -68,10 +48,11 @@ def tag_large_emails(service, size_bytes, label_id):
     print(f"Applying label to {len(messages_summaries)} messages...")
 
     for msg in messages_summaries:
+        print_message_info(msg)
         apply_label_to_message(service, msg["id"], label_id)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Label large Gmail messages.")
     parser.add_argument(
         "--size",

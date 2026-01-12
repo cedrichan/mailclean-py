@@ -1,12 +1,16 @@
 import argparse
+from typing import Any, List, Dict
 from .gmail import (
     get_gmail_service,
     get_pre_cleanup_label_id,
     get_post_cleanup_label_id,
+    GmailService,
 )
 
 
-def fetch_messages_with_label(service, label_id):
+def fetch_messages_with_label(
+    service: GmailService, label_id: str
+) -> List[Dict[str, Any]]:
     """Fetches all messages associated with a specific label ID."""
     results = (
         service.users().messages().list(userId="me", labelIds=[label_id]).execute()
@@ -14,7 +18,9 @@ def fetch_messages_with_label(service, label_id):
     return results.get("messages", [])
 
 
-def delete_labeled_messages(service, pre_label_id, dry_run=False):
+def delete_labeled_messages(
+    service: GmailService, pre_label_id: str, dry_run: bool = False
+) -> None:
     """Deletes messages with the specified label, with a safety check."""
     # Get Label IDs for safety check
     post_label_id = get_post_cleanup_label_id(service)
@@ -58,7 +64,7 @@ def delete_labeled_messages(service, pre_label_id, dry_run=False):
                 print(f"Error deleting message {msg_id}: {e}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Remove original emails marked with PRE_CLEANUP."
     )

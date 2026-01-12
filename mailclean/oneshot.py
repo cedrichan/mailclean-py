@@ -13,7 +13,7 @@ from .strip_attachments import (
 from .remove_originals import delete_labeled_messages
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="One-shot Gmail cleanup: Tag, Save/Strip, and Remove originals."
     )
