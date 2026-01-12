@@ -20,8 +20,8 @@ def main():
     parser.add_argument(
         "--size",
         type=int,
-        default=5000000,
-        help="Minimum email size in bytes (default: 5MB)",
+        default=20000000,
+        help="Minimum email size in bytes (default: 20MB)",
     )
     parser.add_argument(
         "--download_dir", required=True, help="Directory to save attachments"
