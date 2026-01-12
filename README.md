@@ -7,6 +7,7 @@ A suite of Python scripts designed to help you declutter your Gmail inbox by ide
 *   `large_attachments.py`: Finds large emails and marks them for processing.
 *   `strip_attachments.py`: Downloads attachments locally and creates "cleaned" versions of the emails in Gmail.
 *   `remove_originals.py`: Safely removes the original large emails after you've verified the cleanup.
+*   `oneshot.py`: A single command that performs all three steps (tag, strip, and remove) automatically.
 
 ---
 
@@ -33,14 +34,14 @@ uv sync
 The cleanup process is designed in three distinct steps to ensure no data is lost.
 
 ### Step 1: Identify and Label Large Emails
-Run `large_attachments.py` to scan your inbox. By default, it looks for emails larger than 15MB and applies a `PRE_CLEANUP` label to them.
+Run `large_attachments.py` to scan your inbox. By default, it looks for emails larger than 20MB and applies a `PRE_CLEANUP` label to them.
 
 ```shell script
-# Search for emails > 15MB (default)
+# Search for emails > 20MB (default)
 uv run mailclean/large_attachments.py
 
-# Or specify a custom threshold in MB
-uv run mailclean/large_attachments.py --threshold 5
+# Or specify a custom threshold in bytes
+uv run mailclean/large_attachments.py --size 10000000
 ```
 
 
@@ -51,7 +52,7 @@ Run `strip_attachments.py` to process the emails marked `PRE_CLEANUP`.
 - It creates a "cleaned" copy of the email in Gmail (body only) with a `POST_CLEANUP` label.
 
 ```shell script
-uv run mailclean/strip_attachments.py ./my_attachments_folder
+uv run mailclean/strip_attachments.py --download_dir ./my_attachments_folder
 ```
 
 
@@ -64,6 +65,24 @@ uv run mailclean/remove_originals.py --dry-run
 
 # Perform the actual deletion (moves to Trash)
 uv run mailclean/remove_originals.py
+```
+
+
+---
+
+## One-Shot Cleanup
+
+If you want to perform all steps at once without manual verification between them, use `oneshot.py`. This script will:
+1. Find and label large emails.
+2. Download attachments and create cleaned versions.
+3. Move the original emails to the Trash.
+
+```shell script
+# Run full cleanup for emails > 20MB
+uv run mailclean/oneshot.py --download_dir ./my_attachments_folder
+
+# Specify custom size in bytes
+uv run mailclean/oneshot.py --download_dir ./my_attachments_folder --size 10000000
 ```
 
 
