@@ -1,6 +1,8 @@
-# MailClean-Py
+# mailclean-py
 
 A suite of Python scripts designed to help you declutter your Gmail inbox by identifying large emails, saving their attachments locally, and replacing them with lightweight, attachment-free versions.
+
+Mostly vibe coded and tested on my own actual inbox. Use at your own risk.
 
 ## Project Structure
 
