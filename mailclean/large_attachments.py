@@ -47,7 +47,13 @@ def tag_large_emails(service: GmailService, size_bytes: int, label_id: str) -> N
 
     print(f"Applying label to {len(messages_summaries)} messages...")
 
-    for msg in messages_summaries:
+    for msg_summary in messages_summaries:
+        msg = (
+            service.users()
+            .messages()
+            .get(userId="me", id=msg_summary["id"], format="full")
+            .execute()
+        )
         print_message_info(msg)
         apply_label_to_message(service, msg["id"], label_id)
 
