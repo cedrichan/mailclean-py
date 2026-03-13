@@ -7,10 +7,8 @@ from email import message_from_bytes, policy
 from email.message import EmailMessage
 from pathvalidate import sanitize_filename
 from .gmail import (
-    get_gmail_service,
-    get_pre_cleanup_label_id,
-    get_post_cleanup_label_id,
     GmailService,
+    get_gmail_service,
 )
 
 
@@ -18,10 +16,7 @@ def fetch_messages_by_label(
     service: GmailService, label_id: str
 ) -> List[Dict[str, Any]]:
     """Fetches all messages associated with a specific label ID."""
-    results = (
-        service.users().messages().list(userId="me", labelIds=[label_id]).execute()
-    )
-    return results.get("messages", [])
+    return service.list_messages(label_ids=[label_id])
 
 
 def create_email_shortcut(directory: str, message_id: str) -> str:
@@ -144,12 +139,7 @@ def process_messages(
     for msg_meta in messages:
         msg_id = msg_meta["id"]
         # 1. Get raw message content, original internalDate, and threadId
-        msg_data = (
-            service.users()
-            .messages()
-            .get(userId="me", id=msg_id, format="raw")
-            .execute()
-        )
+        msg_data = service.get_message(msg_id, format="raw")
         internal_date = msg_data.get("internalDate")
         thread_id = msg_data.get("threadId")
         raw_bytes = base64.urlsafe_b64decode(msg_data["raw"].encode("ASCII"))
@@ -167,12 +157,7 @@ def process_messages(
 
         try:
             # 3. Create the cleaned duplicate first to get its ID
-            created_msg = (
-                service.users()
-                .messages()
-                .insert(userId="me", body=message_body, internalDateSource="dateHeader")
-                .execute()
-            )
+            created_msg = service.insert_message(message_body)
 
             new_id = created_msg["id"]
             print(f"Created cleaned duplicate: {new_id}")
@@ -206,8 +191,8 @@ def main() -> None:
 
     service = get_gmail_service()
 
-    pre_label_id = get_pre_cleanup_label_id(service)
-    post_label_id = get_post_cleanup_label_id(service)
+    pre_label_id = service.get_pre_cleanup_label_id()
+    post_label_id = service.get_post_cleanup_label_id()
 
     messages = fetch_messages_by_label(service, pre_label_id)
     if not messages:

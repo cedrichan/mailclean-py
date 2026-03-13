@@ -2,8 +2,6 @@ import argparse
 import os
 from .gmail import (
     get_gmail_service,
-    get_pre_cleanup_label_id,
-    get_post_cleanup_label_id,
 )
 from .large_attachments import tag_large_emails
 from .strip_attachments import (
@@ -35,8 +33,8 @@ def main() -> None:
     service = get_gmail_service()
 
     # Labels
-    pre_label_id = get_pre_cleanup_label_id(service)
-    post_label_id = get_post_cleanup_label_id(service)
+    pre_label_id = service.get_pre_cleanup_label_id()
+    post_label_id = service.get_post_cleanup_label_id()
 
     # 1. Tag large emails
     print(f"--- Step 1: Tagging emails larger than {args.size} bytes ---")
