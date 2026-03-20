@@ -14,6 +14,9 @@ class MailCleaner:
     def __init__(self, service: GmailService):
         self._service = service
 
+    def _gmail_url(self, message_id: str) -> str:
+        return f"https://mail.google.com/mail/u/0/#inbox/{message_id}"
+
     def print_message_info(self, message: dict[str, Any]) -> None:
         """Format and print message details including a direct browser link."""
         headers = message.get("payload", {}).get("headers", [])
@@ -32,7 +35,7 @@ class MailCleaner:
         size_mb = size_bytes / 1024 / 1024
 
         msg_id = message.get("id")
-        link = f"https://mail.google.com/mail/u/0/#inbox/{msg_id}"
+        link = self._gmail_url(msg_id)
 
         print(f"Subject: {subject}")
         print(f"From:    {sender}")
@@ -59,7 +62,7 @@ class MailCleaner:
 
     def _create_email_shortcut(self, directory: str, message_id: str) -> str:
         """Create a .url shortcut file pointing to the Gmail message."""
-        link = f"https://mail.google.com/mail/u/0/#inbox/{message_id}"
+        link = self._gmail_url(message_id)
         filename = "__LINK.url"
         filepath = os.path.join(directory, filename)
 
