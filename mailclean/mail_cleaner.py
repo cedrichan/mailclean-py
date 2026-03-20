@@ -41,10 +41,6 @@ class MailCleaner:
         print(f"Link:    {link}")
         print("-" * 40)
 
-    def apply_label_to_message(self, message_id: str, label_id: str) -> None:
-        """Add the specified label to a message."""
-        self._service.add_label_to_message(message_id, label_id)
-
     def tag_large_emails(self, size_bytes: int, label_id: str) -> None:
         """Apply a label to messages larger than the specified size."""
         query = f"larger:{size_bytes}"
@@ -55,7 +51,7 @@ class MailCleaner:
         for msg_summary in messages_summaries:
             msg = self._service.get_message(msg_summary["id"], format="full")
             self.print_message_info(msg)
-            self.apply_label_to_message(msg["id"], label_id)
+            self._service.add_label_to_message(msg["id"], label_id)
 
     def fetch_messages_by_label(self, label_id: str) -> list[dict[str, Any]]:
         """Fetch all messages associated with the given label ID."""
