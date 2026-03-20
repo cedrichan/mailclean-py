@@ -1,5 +1,4 @@
 import base64
-import os
 from datetime import datetime
 from email import message_from_bytes, policy
 from email.message import EmailMessage
@@ -7,12 +6,14 @@ from typing import Any
 
 from pathvalidate import sanitize_filename
 
+from .filesystem import FileSystem
 from .gmail import GmailService
 
 
 class MailCleaner:
-    def __init__(self, service: GmailService):
+    def __init__(self, service: GmailService, fs: FileSystem):
         self._service = service
+        self._fs = fs
 
     def _gmail_url(self, message_id: str) -> str:
         return f"https://mail.google.com/mail/u/0/#inbox/{message_id}"
@@ -64,11 +65,8 @@ class MailCleaner:
         """Create a .url shortcut file pointing to the Gmail message."""
         link = self._gmail_url(message_id)
         filename = "__LINK.url"
-        filepath = os.path.join(directory, filename)
-
-        with open(filepath, "w") as f:
-            f.write("[InternetShortcut]\n")
-            f.write(f"URL={link}\n")
+        filepath = self._fs.join(directory, filename)
+        self._fs.write_text(filepath, f"[InternetShortcut]\nURL={link}\n")
         return filename
 
     def _save_attachments(
@@ -92,10 +90,9 @@ class MailCleaner:
 
         clean_subject = sanitize_filename(subject)
         folder_name = f"{formatted_datetime} - {original_message_id} - {clean_subject}"
-        target_dir = os.path.join(base_dir, folder_name)
+        target_dir = self._fs.join(base_dir, folder_name)
 
-        if not os.path.exists(target_dir):
-            os.makedirs(target_dir)
+        self._fs.makedirs(target_dir)
 
         if new_message_id:
             self._create_email_shortcut(target_dir, new_message_id)
@@ -106,11 +103,8 @@ class MailCleaner:
             filename = part.get_filename()
             if filename:
                 clean_filename = sanitize_filename(filename)
-                filepath = os.path.join(target_dir, clean_filename)
-
-                payload = part.get_payload(decode=True)
-                with open(filepath, "wb") as f:
-                    f.write(payload)
+                filepath = self._fs.join(target_dir, clean_filename)
+                self._fs.write_bytes(filepath, part.get_payload(decode=True))
                 saved_files.append(clean_filename)
 
         return saved_files

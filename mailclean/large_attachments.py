@@ -1,4 +1,5 @@
 import argparse
+from .filesystem import FileSystem
 from .gmail import get_gmail_service
 from .mail_cleaner import MailCleaner
 
@@ -14,7 +15,7 @@ def main() -> None:
     args = parser.parse_args()
 
     service = get_gmail_service()
-    cleaner = MailCleaner(service)
+    cleaner = MailCleaner(service, FileSystem())
     threshold_bytes = args.size
     print(f"Searching for emails larger than {threshold_bytes} bytes...\n")
 

@@ -1,6 +1,7 @@
 import argparse
 import os
 
+from .filesystem import FileSystem
 from .gmail import get_gmail_service
 from .mail_cleaner import MailCleaner
 
@@ -19,7 +20,7 @@ def main() -> None:
         os.makedirs(args.download_dir)
 
     service = get_gmail_service()
-    cleaner = MailCleaner(service)
+    cleaner = MailCleaner(service, FileSystem())
 
     pre_label_id = service.get_pre_cleanup_label_id()
     post_label_id = service.get_post_cleanup_label_id()

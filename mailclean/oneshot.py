@@ -1,5 +1,6 @@
 import argparse
 import os
+from .filesystem import FileSystem
 from .gmail import (
     get_gmail_service,
 )
@@ -26,7 +27,7 @@ def main() -> None:
         os.makedirs(args.download_dir)
 
     service = get_gmail_service()
-    cleaner = MailCleaner(service)
+    cleaner = MailCleaner(service, FileSystem())
     cleaner.run_cleanup(args.size, args.download_dir)
 
 

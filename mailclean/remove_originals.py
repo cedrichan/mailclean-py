@@ -1,4 +1,5 @@
 import argparse
+from .filesystem import FileSystem
 from .gmail import (
     get_gmail_service,
 )
@@ -15,7 +16,7 @@ def main() -> None:
     args = parser.parse_args()
 
     service = get_gmail_service()
-    cleaner = MailCleaner(service)
+    cleaner = MailCleaner(service, FileSystem())
 
     pre_label_id = service.get_pre_cleanup_label_id()
 
