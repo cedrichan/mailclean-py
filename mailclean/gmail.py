@@ -1,5 +1,4 @@
 import os.path
-from functools import lru_cache
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -90,11 +89,9 @@ class GmailService:
         self._label_id_cache[label_name] = label_id
         return label_id
 
-    @lru_cache(maxsize=None)
     def get_pre_cleanup_label_id(self) -> str:
         return self.get_or_create_label(PRE_CLEANUP_LABEL)
 
-    @lru_cache(maxsize=None)
     def get_post_cleanup_label_id(self) -> str:
         return self.get_or_create_label(POST_CLEANUP_LABEL)
 
